@@ -1,5 +1,5 @@
 
-AggroHP                  = 30
+AggroHP                  = 60
 AggroSP                  = 0
 OldHomunType			= 3
 UseSkillOnly             = -1 
@@ -115,7 +115,7 @@ Berserk_Dance            = 0
 Berserk_IgnoreMinSP      = 0
 PVPmode                  = 0
 ProvokeOwnerMobbed       = 0
-LastSavedDate            = "7/6/2025 3:49:39 AM"
+LastSavedDate            = "Default Configuration 1.56"
 LagReduction             = 0
 LiveMobID                = 0
 DoNotAttackMoving        = 0

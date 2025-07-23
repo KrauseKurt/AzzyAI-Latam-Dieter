@@ -4,7 +4,7 @@
 -- This AI is intended for use on official servers only
 -- Permission granted to distribute in unmodified form.
 -- You may expand the AI freely through the M_Extra and H_Extra files
-MainVersion="1.550"
+MainVersion="1.56"
 
 ResCmdList			= List.new()
 -- As of dev 15, global variables are now in Const_.lua
@@ -74,7 +74,7 @@ function doInit(myid)
 		end
 		UseSeraParalyze=0
 	end
-	if GetV(V_SKILLATTACKRANGE,myid,MH_POISON_MIST) == 1 then 
+	if GetV(V_SKILLATTACKRANGE,myid,MH_POISON_MIST) < 2 then 
 		if UseSeraPoisonMist and GetV(V_HOMUNTYPE,myid)==SERA then
 			logstring=logstring.."UseSeraPoisonMist disabled - you don't have the skill!"
 		end
@@ -147,9 +147,9 @@ function AdjustCapriceLevel()
 end
 function loadtimeouts()
 	if IsHomun(MyID)==1 then
-		dofile("./AI/USER_AI/data/H_"..GetV(V_OWNER,MyID).."Timeouts.lua")
+		dofile(ConfigPath.."data/H_"..GetV(V_OWNER,MyID).."Timeouts.lua")
 	else
-		dofile("./AI/USER_AI/data/M_"..GetV(V_OWNER,MyID).."Timeouts.lua")
+		dofile(ConfigPath.."data/M_"..GetV(V_OWNER,MyID).."Timeouts.lua")
 	end
 	if AggressiveRelogTracking==1 then
 		if IsHomun(MyID)==1 then
@@ -754,7 +754,7 @@ function	OnCHASE_ST ()
 		TraceAI("CHASE_ST: We're not getting any closer - we were "..GetDistanceAPR(MyEnemy,MyPosX[3],MyPosY[3]).." cells away 2 cycles ago, now "..GetDistanceAR(MyID,MyEnemy).." Increment ChaseGiveUpCount")
 	end
 	OnChaseStart()
-	if OpportunisticTargeting ==1 and MySkill==0 and SuperPassive~=1 then
+	if OpportunisticTargeting ==1 and MySkill==0 and SuperPassive~=1 and IsRescueTarget(MyEnemy)==0 then
 		if (HPPercent(MyID) > AggroHP and (SPPercent(MyID) > AggroSP or AggroSP==0) and (ShouldStandby == 0 or StickyStandby ==0)) then
 			aggro=1
 		else
@@ -782,7 +782,6 @@ function	OnCHASE_ST ()
 		AttackTimeout=GetTick()+AttackTimeLimit
 		ExChaseGiveUpCount=ChaseGiveUpCount
 		ChaseGiveUpCount=0
-		MySkillUsedCount=0
 		TraceAI ("CHASE_ST -> ATTACK_ST : ENEMY_INATTACKSIGHT_IN")
 		if (FastChangeCount < FastChangeLimit and FastChange_C2A == 1) then
 			FastChangeCount = FastChangeCount+1
@@ -869,7 +868,7 @@ function	OnCHASE_ST ()
 			if skilltouse[1] == DEBUFF_ATK then
 				ChaseDebuffUsed=1
 			end
-			MySkillUsedCount=1
+			MySkillUsedCount=MySkillUsedCount+1
 		end
 	else
 		TraceAI("Not in range, and can't use chase skill")
@@ -1368,7 +1367,7 @@ function	OnTANKCHASE_ST ()
 			if skilltouse[1] == DEBUFF_ATK then
 				ChaseDebuffUsed=1
 			end
-			MySkillUsedCount=1
+			MySkillUsedCount=MySkillUsedCount+1
 		end
 	else
 		TraceAI("Not in range, and can't use chase skill")
@@ -1398,10 +1397,10 @@ function OnTANK_ST()
 		TraceAI("TANK_ST->IDLE_ST - Target dead or out of sight")
 		return
 	end
-	if (GetV(V_TARGET,MyEnemy)~=MyID and (TankHitTimeout + 1500) < GetTick()) then
-		TankHitTimeout = GetTick()
+	if (GetV(V_TARGET,MyEnemy)~=MyID and (TankHitTimeout + 2500) < GetTick()) then
 		if (IsInAttackSight(MyID,MyEnemy)==true) then
 			Attack(MyID,MyEnemy)
+			TankHitTimeout = GetTick()
 		else
 			MyState=TANKCHASE_ST
 			TraceAI("TANK_ST->TANKCHASE_ST - Target out of range")
@@ -2104,7 +2103,7 @@ function SelectEnemy(enemys,curenemy)
 		end
 		min_priority=convpriority(GetTact(TACT_BASIC,curenemy),aggrotemp)
 		if dist < 3 then 
-			return 0
+			return curenemy
 		else
 			min_dis = dist - 3
 		end
@@ -2602,9 +2601,9 @@ function UpdateTimeoutFile()
 		ShouldStandbyx=0
 	end
 	if IsHomun(MyID)==1 then
-		OutFile=io.open("./AI/USER_AI/data/H_"..GetV(V_OWNER,MyID).."Timeouts.lua","w")
+		OutFile=io.open(ConfigPath.."data/H_"..GetV(V_OWNER,MyID).."Timeouts.lua","w")
 	else
-		OutFile=io.open("./AI/USER_AI/data/M_"..GetV(V_OWNER,MyID).."Timeouts.lua","w")
+		OutFile=io.open(ConfigPath.."data/M_"..GetV(V_OWNER,MyID).."Timeouts.lua","w")
 	end
 	if OutFile~=nil then
 		OutFile:write("MagTimeout="..TimeoutConv(MagTimeout).."\nSOffensiveTimeout="..TimeoutConv(SOffensiveTimeout).."\nSDefensiveTimeout="..TimeoutConv(SDefensiveTimeout).."\nSOwnerBuffTimeout="..TimeoutConv(SOwnerBuffTimeout).."\nGuardTimeout="..TimeoutConv(GuardTimeout).."\nQuickenTimeout="..TimeoutConv(QuickenTimeout).."\nOffensiveOwnerTimeout="..TimeoutConv(OffensiveOwnerTimeout).."\nDefensiveOwnerTimeout="..TimeoutConv(DefensiveOwnerTimeout).."\nOtherOwnerTimeout="..TimeoutConv(OtherOwnerTimeout).."\nShouldStandby="..ShouldStandbyx.."\nRegenTick[1]="..RegenTick[1].."\nMySpheres="..MySpheres.."\nEleanorMode="..EleanorMode)
@@ -2656,6 +2655,11 @@ function OnPROVOKE_ST()
 		return
 	elseif SkillObjectCMDTimeout>SkillObjectCMDLimit then
 		TraceAI("PROVOKE_ST -> IDLE_ST Couldn't get into range to provoke/AoE owner")
+		if (MyPMode==12) then
+			DefensiveOwnerTimeout=GetTick()+20000
+		elseif (MyPMode==7) then
+			ProvokeOwnerTimeout=GetTick()+10000
+		end
 		if MyPState~=PROVOKE_ST then
 			MyState=MyPState
 		else
@@ -2772,7 +2776,7 @@ function	OnIDLEWALK_ST ()
 	local x,y=GetV(V_POSITION,MyID)
 	local ox,oy=GetV(V_POSITION,GetV(V_OWNER,MyID))
 	local motion=GetV(V_MOTION,MyID)
-	if (GetDistanceAPR(MyID,MyDestX,MyDestY)>=1) or IdleWalkTries > 6 or GetDistanceAPR(GetV(V_OWNER,MyID),MyDestX,MyDestY) > GetMoveBounds() then 
+	if (GetDistanceAPR(MyID,MyDestX,MyDestY)<=1) then --we're there.
 		if OldHomunType==AMISTR and UseCastleRoute==1 and (UseIdleWalk==5 or UseIdleWalk==6) and RelativeRoute==0 and GetDistanceP(x,y,ox,oy) > 2 then
 			if GetTick() > AutoSkillTimeout then
 				DoSkill(HAMI_CASTLE,5,MyID)
@@ -2784,6 +2788,8 @@ function	OnIDLEWALK_ST ()
 		elseif UseCastleRoute==1 and OldHomunType==AMISTR and RelativeRoute==0 then
 			TraceAI("We're set to use castling route, but can't, UseIdleWalk="..UseIdleWalk.." distance: "..GetDistanceP(x,y,ox,oy))
 		end
+		MyDestX,MyDestY=GetIdleWalkDest(MyID)
+	elseif (GetDistanceAPR(MyID,MyDestX,MyDestY)>=1) and (IdleWalkTries > 6 or GetDistanceAPR(GetV(V_OWNER,MyID),MyDestX,MyDestY) > GetMoveBounds()) then 
 		MyDestX,MyDestY=GetIdleWalkDest(MyID)
 		if MyDestX==ox and MyDestY==oy then
 			MyDestX,MyDestY=Closest(MyID,MyDestX,MyDestY,1,1)
@@ -2890,12 +2896,12 @@ function GetIdleWalkDest(MyID)
 				dist=0
 				TraceAI("Route Analysis: on route cell "..posx..","..posy.." route step: "..k.." "..v[1]..","..v[2].." current step "..step.."/"..dist)
 			else 
-				local distance=math.sqrt((v[1]-posx)^2+(v[2]-posy))
+				local distance=math.sqrt((v[1]-posx)^2+(v[2]-posy)^2)
 				if distance < dist then
 					dist=distance
 					step=k
+					TraceAI("Route Analysis: "..posx..","..posy.." route step: "..k.." "..v[1]..","..v[2].." distance "..distance.." current step "..step.."/"..dist)
 				end
-				TraceAI("Route Analysis: "..posx..","..posy.." route step: "..k.." "..v[1]..","..v[2].." distance "..distance.." current step "..step.."/"..dist)
 			end
 		end
 		-- now we're at position 'step'	
@@ -3113,9 +3119,11 @@ function FailSkillUse(mode)
 		logappend("AAI_SKILLFAIL","Skill cast appears to have failed: Mode "..mode.." fail count "..SkillFailCount[mode].." will try again")
 		SkillFailCount[mode]=SkillFailCount[mode]+1
 	else
+		if (mode~=nil and mode ~=0) then
 		TraceAI("Skill cast appears to have failed, but we're past the retry limit, so screw it: Mode "..mode.." fail count "..SkillFailCount[mode])
 		logappend("AAI_SKILLFAIL","Skill cast appears to have failed, but we're past the retry limit, so screw it: Mode "..mode.." fail count "..SkillFailCount[mode])
 		SkillFailCount[mode]=0
+	end
 	end
 	AutoSkillTimeout = 1
 	AutoSkillCastTimeout = 1
@@ -3142,6 +3150,8 @@ function AI(myid)
 		if LastAITime + 400 < GetTick() and LastAITime > 10 then
 			TraceAI("Missed AI calls. Previous AI call was "..LastAITime-GetTick().." ms ago")
 			logappend("AAI_SKILLFAIL", "Missed AI calls. Previous AI call was "..LastAITime-GetTick().." ms ago")
+			EnemyPosX = {0,0,0,0,0,0,0,0,0,0} --When we miss AI calls, that means our predictive motion is probly screwed up
+			EnemyPosY = {0,0,0,0,0,0,0,0,0,0} --so flush this to prevent homun from getting confused by it, 
 		end
 		LastAIDelay=GetTick()-LastAITime
 		LastAITime=GetTick()
@@ -3181,9 +3191,9 @@ function AI(myid)
 		local owner=GetV(V_OWNER,myid)
 		local OutFile
 		if (IsHomun(myid)==1) then
-			OutFile=io.open("AI/USER_AI/data/H_"..owner..".txt","w")
+			OutFile=io.open(ConfigPath.."data/H_"..owner..".txt","w")
 		else
-			OutFile=io.open("AI/USER_AI/data/M_"..owner..".txt","w")
+			OutFile=io.open(ConfigPath.."data/M_"..owner..".txt","w")
 		end
 		if OutFile~=nil then
 			OutFile:write (myid)
@@ -3332,12 +3342,12 @@ function AI(myid)
 						end
 					end
 				end
-				if (v >= MagicNumber2 and v <= MagicNumber3) then
+				if (v > MagicNumber2) then
 					Players[v]=1
 					if MyFriends[v]==FRIEND and GetV(V_OWNER,MyID)~=v then --Newly appeared on screen
 						if OldPlayers[v]~=1 or AggressiveAutofriend then
-							local newfriendhidfile=io.open("./AI/USER_AI/data/H_"..v..".txt","r")
-							local newfriendmidfile=io.open("./AI/USER_AI/data/M_"..v..".txt","r")
+							local newfriendhidfile=io.open(ConfigPath.."data/H_"..v..".txt","r")
+							local newfriendmidfile=io.open(ConfigPath.."data/M_"..v..".txt","r")
 							TraceAI("new friend on screen, checking H_ID"..v)
 							if newfriendhidfile~=nil then
 								TraceAI("h_id found"..v)
@@ -3461,9 +3471,9 @@ function AI(myid)
 		if (friendedOK==0) then
 			local owner=GetV(V_OWNER,MyID)
 			if (IsHomun(myid)==1) then
-				InFile=io.open("./AI/USER_AI/data/M_"..owner..".txt","r")
+				InFile=io.open(ConfigPath.."data/M_"..owner..".txt","r")
 			else
-				InFile=io.open("./AI/USER_AI/data/H_"..owner..".txt","r")
+				InFile=io.open(ConfigPath.."data/H_"..owner..".txt","r")
 			end
 			if InFile~=nil then
 				retainerid=InFile:read("*a")

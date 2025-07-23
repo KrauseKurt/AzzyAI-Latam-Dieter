@@ -4,7 +4,7 @@
 -- it is reccomended that you use the seperately available
 -- version, which does not utilize AAI-specific systems. 
 -- Written by Dr. Azzy of iRO Chaos
-AUVersion="1.552"
+AUVersion="1.56"
 -------------------------------
 
 
@@ -207,7 +207,7 @@ function	GetPVPTact(t,m)
 end
 
 function	GetClass(m)
-	if (m >= MagicNumber) then
+	if (m < MagicNumber) then
 		return 10
 	elseif (IsActive[m]==0 and AutoDetectPlant==1) then
 		return 11
@@ -265,7 +265,7 @@ function GetTargetClass(id)
 		return 1
 	elseif id == 0 then
 		return 0
-	elseif (id >= MagicNumber2 and id <= MagicNumber3) then
+	elseif (id > MagicNumber2) then
 		if IsFriendOrSelf(id)==1 then
 			return 2
 		else
@@ -319,7 +319,7 @@ function IsFriendOrSelf(id)
 end
 
 function IsPlayer(id)
-	if (id>=MagicNumber2 and id <= MagicNumber3) then
+	if (id>MagicNumber2) then
 		return 1
 	else
 		return 0
@@ -327,7 +327,7 @@ function IsPlayer(id)
 end
 
 function UpdateFriends() 
-	FriendsFile = io.open("AI/USER_AI/A_Friends.lua", "w")
+	FriendsFile = io.open(ConfigPath.."A_Friends.lua", "w")
 	if FriendsFile~=nil then
 		FriendsFile:write (STRING_A_FRIENDS_HEAD)
 		for k,v in pairs(MyFriends) do
@@ -957,7 +957,7 @@ function Move(myid,x,y)
 			TraceAI("MOVE: Attempt to move more than 15 cells, destination adjusted: "..x..","..y.." "..dis.." "..factor.."new: "..newx..","..newy)
 		end
 	end
-	if (LagReduction and LagReduction~=0) then
+	if (LagReduction and LagReduction ~=0) then
 		modtwROMoveX,modtwROMoveY=x,y
 		return
 	else 
@@ -971,7 +971,7 @@ function SkillObject(myid,lvl,skill,target)
 	if skill==8041 or skill==8043 or skill==8020 or skill==8025 then
 		logappend("AAI_ERROR","Attempted to use skill "..SkillInfo[skill][1].." improperly. Check for corrupt H_SkillInfo or badly behaved addon")
 	else
-		if (LagReduction and LagReduction~=0) then
+		if (LagReduction and LagReduction ~=0) then
 			modtwROSkillObjectID=skill
 			modtwROSkillObjectLV=lvl
 			modtwROSkillObjectTarg=target
@@ -986,7 +986,7 @@ function Attack(myid,target)
 	if SuperPassive==1 then
 		TraceAI("Notice: Attack() called while in SuperPassive. MyEnemy "..MyEnemy.." MyState "..MyState)
 	end
-	if (LagReduction and LagReduction~=0) then
+	if (LagReduction and LagReduction ~=0) then
 		modtwROAttackTarget=target
 	else
 		return OldAttack(myid,target)
@@ -995,7 +995,7 @@ end
 
 OldSkillGround=SkillGround
 function SkillGround(myid,lvl,skill,x,y)
-	if (LagReduction and LagReduction~=0) then
+	if (LagReduction and LagReduction ~=0) then
 		modtwROSkillGroundX=x
 		modtwROSkillGroundY=y
 		modtwROSkillGroundID=skill
@@ -1791,7 +1791,7 @@ function GetSAtkSkill(myid)
 			elseif htype==SERA and UseSeraParalyze==1 then
 				skill=MH_NEEDLE_OF_PARALYZE
 				if SeraParalyzeLevel==nil then
-					level=10
+					level=5
 				else
 					level=SeraParalyzeLevel
 				end
@@ -2066,7 +2066,7 @@ function GetMobSkill(myid)
 			elseif htype==DIETER and UseDieterLavaSlide==1 and LavaSlideMode==0 then
 				skill=MH_LAVA_SLIDE
 				if DieterLavaSlideLevel==nil then
-					level=5
+					level=10
 				else
 					level=DieterLavaSlideLevel
 				end
@@ -2198,7 +2198,11 @@ function	GetSOwnerBuffSkill(myid)
 			skillopt=UseEiraOveredBoost
 		elseif	(htype==DIETER and UseDieterPyroclastic~=0) then
 			skill=MH_PYROCLASTIC
-			level = 10
+			if DieterPyroclasticLevel==nil then
+				level = 10
+			else
+				level=DieterPyroclasticLevel
+			end
 			skillopt=UseDieterPyroclastic
 		end
 		return skill,level,skillopt
@@ -2222,7 +2226,7 @@ function GetSightOrAoE(myid)
 		htype=GetV(V_HOMUNTYPE,myid)
 		if	(htype==DIETER and UseDieterLavaSlide==1 and LavaSlideMode~=0) then
 			skill=MH_LAVA_SLIDE
-			level = 5
+			level = 10
 			skillopt=LavaSlideMode
 		elseif (htype==SERA and PoisonMistMode~=0 and UseSeraPoisonMist==1) then
 			skill=MH_POISON_MIST
@@ -2397,7 +2401,7 @@ function GetTargetedSkills(myid)
 	s,l=GetAtkSkill(myid)
 	Mainatk={MAIN_ATK,s,l}
 	s,l=GetSAtkSkill(myid)
-	Satk={S_ATK, MH_LAVA_SLIDE, 10}
+	Satk={S_ATK,s,l}
 	s,l=GetComboSkill(myid)
 	ComboAtk={COMBO_ATK,s,l}
 	s,l=GetGrappleSkill(myid)
